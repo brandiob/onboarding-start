@@ -4,8 +4,9 @@
 # defaults
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
+
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = project.v pwm_peripheral.v "spi peripheral"
+PROJECT_SOURCES = pwm_peripheral.v spi_peripheral.v project.v
 
 ifneq ($(GATES),yes)
 

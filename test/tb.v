@@ -28,11 +28,11 @@ module tb ();
 `endif
 
   // Replace tt_um_example with your module name:
-  tt_um_uwasic_onboarding_brandon_thomas (
+  tt_um_uwasic_onboarding_brandon_thomas uut (
 
       // Include power ports for the Gate Level test:
 `ifdef GL_TEST
-      .VPWR(VPWR),
+       .VPWR(VPWR),
       .VGND(VGND),
 `endif
 
