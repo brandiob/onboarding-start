@@ -105,3 +105,4 @@ module spi_peripheral(
                 end
         end
     end
+endmodule
