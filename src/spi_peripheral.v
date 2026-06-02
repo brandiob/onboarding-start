@@ -1,4 +1,4 @@
-module tt_um_uwasic_onboarding_brandon_thomas(
+module spi_peripheral(
     input wire COPI,
     input wire SCLK,
     input wire nCS,
