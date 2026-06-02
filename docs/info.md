@@ -9,12 +9,12 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-tiny tapeout tapes out something tiny
+SPI-controlled PWN peripheral for Tiny Tapeout
 
 ## How to test
 
-test it by giving it tests
+python
 
 ## External hardware
 
-my computer
+computer
