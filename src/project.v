@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2024 Your Name
+ * Copyright (c) 2024 Brandon Thomas
  * SPDX-License-Identifier: Apache-2.0
  */
 
 `default_nettype none
+
 
 module tt_um_uwasic_onboarding_brandon_thomas (
     input  wire [7:0] ui_in,    // Dedicated inputs
@@ -16,46 +17,51 @@ module tt_um_uwasic_onboarding_brandon_thomas (
     input  wire       rst_n     // reset_n - low to reset
 );
 
-  // All output pins must be assigned. If not used, assign to 0.
+  // All output pins must be assigned. Bidirectionals are configured as outputs.
   assign uio_oe = 8'hFF;
 
-  // List all unused inputs to prevent warnings
+  // Interconnect wires between SPI peripheral and PWM peripheral
   wire [7:0] en_reg_out_7_0;
   wire [7:0] en_reg_out_15_8;
   wire [7:0] en_reg_pwm_7_0;
   wire [7:0] en_reg_pwm_15_8;
   wire [7:0] pwm_duty_cycle;
 
-  //Instantiate SPI module
+  // 16-bit wide bus to capture the output of the PWM peripheral safely
+  wire [15:0] pwm_outputs;
 
+  // Assign the split wire halves directly to the physical top-level output ports
+  assign uo_out  = pwm_outputs[7:0];
+  assign uio_out = pwm_outputs[15:8];
+
+  // Instantiate SPI module matching local Icarus bit expectations
   spi_peripheral spi_peripheral_inst (
-
-      .SCLK(ui_in[0]),
-      .COPI(ui_in[1]),
-      .nCS(ui_in[2]),
-      .clk(clk),  
+      .SCLK (ui_in[0]), 
+      .COPI (ui_in[1]), 
+      .nCS  (ui_in[2]), 
+      .clk  (clk),  
       .rst_n(rst_n),
 
-      .en_reg_out_7_0(en_reg_out_7_0),
+      .en_reg_out_7_0 (en_reg_out_7_0),
       .en_reg_out_15_8(en_reg_out_15_8),
-      .en_reg_pwm_7_0(en_reg_pwm_7_0),
+      .en_reg_pwm_7_0 (en_reg_pwm_7_0),
       .en_reg_pwm_15_8(en_reg_pwm_15_8),
-      .pwm_duty_cycle(pwm_duty_cycle)
-
+      .pwm_duty_cycle (pwm_duty_cycle)
   );
 
   // Instantiate the PWM module
   pwm_peripheral pwm_peripheral_inst (
-    .clk(clk),
-    .rst_n(rst_n),
-    .en_reg_out_7_0(en_reg_out_7_0),
-    .en_reg_out_15_8(en_reg_out_15_8),
-    .en_reg_pwm_7_0(en_reg_pwm_7_0),
-    .en_reg_pwm_15_8(en_reg_pwm_15_8),
-    .pwm_duty_cycle(pwm_duty_cycle),
-    .out({uio_out, uo_out})
+      .clk(clk),
+      .rst_n(rst_n),
+      .en_reg_out_7_0(en_reg_out_7_0),
+      .en_reg_out_15_8(en_reg_out_15_8),
+      .en_reg_pwm_7_0(en_reg_pwm_7_0),
+      .en_reg_pwm_15_8(en_reg_pwm_15_8),
+      .pwm_duty_cycle(pwm_duty_cycle),
+      .out(pwm_outputs)
   );
-  // Add uio_in and ui_in[7:3] to the list of unused signals:
+
+  // Collect all unused elements explicitly to prevent OpenLane pin optimization faults
   wire _unused = &{ena, ui_in[7:3], uio_in, 1'b0};
 
 endmodule
