@@ -170,23 +170,31 @@ async def setup_pwm_output(dut, duty_value):
     await ClockCycles(dut.clk, 100)
 
 async def measure_pwm_period_ns(dut):
-    previous_state = sample_target_pwm_bit(dut)
     first_edge = None
+    
+    
+    await RisingEdge(dut.clk)
+    previous_state = sample_target_pwm_bit(dut)
+    
     for _ in range(50000):
         await RisingEdge(dut.clk)
         current_state = sample_target_pwm_bit(dut)
         if previous_state == 0 and current_state == 1:
-            first_edge = cocotb.utils.get_sim_time(unit="ns")
+            first_edge = cocotb.utils.get_sim_time(units="ns")
             break
         previous_state = current_state
+
+    await RisingEdge(dut.clk)
+    previous_state = sample_target_pwm_bit(dut)
 
     for _ in range(50000):
         await RisingEdge(dut.clk)
         current_state = sample_target_pwm_bit(dut)
         if previous_state == 0 and current_state == 1:
-            second_edge = cocotb.utils.get_sim_time(unit="ns")
+            second_edge = cocotb.utils.get_sim_time(units="ns")
             return second_edge - first_edge
         previous_state = current_state
+        
     raise TimeoutError("Failed to catch PWM period edges")
 
 async def measure_pwm_duty_percent(dut):
@@ -198,7 +206,7 @@ async def measure_pwm_duty_percent(dut):
         await RisingEdge(dut.clk)
         current_state = sample_target_pwm_bit(dut)
         if previous_state == 0 and current_state == 1:
-            t_rise = cocotb.utils.get_sim_time(unit="ns")
+            t_rise = cocotb.utils.get_sim_time(units="ns")
             break
         previous_state = current_state
 
@@ -206,7 +214,7 @@ async def measure_pwm_duty_percent(dut):
         await RisingEdge(dut.clk)
         current_state = sample_target_pwm_bit(dut)
         if previous_state == 1 and current_state == 0:
-            t_fall = cocotb.utils.get_sim_time(unit="ns")
+            t_fall = cocotb.utils.get_sim_time(units="ns")
             break
         previous_state = current_state
 
@@ -214,7 +222,7 @@ async def measure_pwm_duty_percent(dut):
         await RisingEdge(dut.clk)
         current_state = sample_target_pwm_bit(dut)
         if previous_state == 0 and current_state == 1:
-            t_next_rise = cocotb.utils.get_sim_time(unit="ns")
+            t_next_rise = cocotb.utils.get_sim_time(units="ns")
             break
         previous_state = current_state
 
@@ -225,12 +233,14 @@ async def measure_pwm_duty_percent(dut):
 @cocotb.test()
 async def test_pwm_freq(dut):
     dut._log.info("Starting Functional PWM Frequency Validation...")
-    # Start the clock for this test block
-    clock = Clock(dut.clk, 100, units="ns")
+    clock = Clock(dut.clk, 100, unit="ns")
     cocotb.start_soon(clock.start())
     
     await reset_dut(dut)
     await setup_pwm_output(dut, 0x80)
+    
+    # give time to start flipping bit
+    await ClockCycles(dut.clk, 100) 
 
     period_ns = await measure_pwm_period_ns(dut)
     frequency_hz = 1_000_000_000 / period_ns
