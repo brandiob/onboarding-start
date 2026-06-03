@@ -233,7 +233,7 @@ async def measure_pwm_duty_percent(dut):
 @cocotb.test()
 async def test_pwm_freq(dut):
     dut._log.info("Starting Functional PWM Frequency Validation...")
-    clock = Clock(dut.clk, 100, unit="ns")
+    clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
     
     await reset_dut(dut)
