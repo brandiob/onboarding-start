@@ -32,7 +32,7 @@ module spi_peripheral(
     reg [15:0] shift_reg;
     reg [4:0] bit_count;
 
-    // Continuous parser ensures values are instantly readable as shift_reg changes
+    // continous parser ensures values are instantly readable as shift_reg changes
     assign rw_bit  = shift_reg[15];
     assign address = shift_reg[14:8];
     assign payload = shift_reg[7:0];
@@ -61,7 +61,7 @@ module spi_peripheral(
             en_reg_pwm_15_8 <= 8'h00;
             pwm_duty_cycle  <= 8'h00;
         end else begin
-            // Synchronize inputs
+            // sync inputs
             copi_temp1 <= copi_temp0;
             copi_temp0 <= COPI;
 
@@ -72,7 +72,7 @@ module spi_peripheral(
             sclk_temp1 <= sclk_temp0;
             sclk_temp0 <= SCLK;
 
-            // 1. Process write command when nCS goes high
+            // process write command when nCS goes high
             if (ncs_temp0 == 1'b1 && ncs_temp1 == 1'b0) begin
                 if (rw_bit == 1'b1 && address <= 7'h04 && bit_count == 5'd16) begin
                     case (address)
@@ -81,12 +81,12 @@ module spi_peripheral(
                         7'h02: en_reg_pwm_7_0  <= payload;
                         7'h03: en_reg_pwm_15_8 <= payload;
                         7'h04: pwm_duty_cycle  <= payload;
-                        default: ; // Handles Verilator CASEINCOMPLETE
+                        default: ; // handle CASEINCOMPLETE
                     endcase
                 end
             end
 
-            // 2. Clear or shift data based on bus status
+            // clear or shift data
             if (ncs_temp0 == 1'b1) begin
                 bit_count <= 5'b0;
                 transaction_active <= 1'b0;
@@ -94,7 +94,7 @@ module spi_peripheral(
                 shift_reg <= 16'b0;
             end else begin
                 transaction_active <= 1'b1;
-                if (sclk_temp1 == 1'b1 && sclk_temp2 == 1'b0) begin // Rising edge of SCLK
+                if (sclk_temp1 == 1'b1 && sclk_temp2 == 1'b0) begin // rising edge of SCLK
                     shift_reg <= {shift_reg[14:0], copi_temp1};
                     bit_count <= bit_count + 1'b1;
                 end

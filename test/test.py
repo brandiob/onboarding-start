@@ -149,13 +149,120 @@ async def test_spi(dut):
 
     dut._log.info("SPI test completed successfully")
 
+    # ////////////////////////
+    # Brandon's portion below
+    # ////////////////////////
+
 @cocotb.test()
 async def test_pwm_freq(dut):
-    # Write your test here
-    dut._log.info("PWM Frequency test completed successfully")
+    dut._log.info("Starting Functional PWM Frequency Validation...")
+    clock = Clock(dut.clk, 100, unit="ns")
+    cocotb.start_soon(clock.start())
+    await run_system_reset(dut)
+    
+    
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    await send_spi_transaction(dut, 1, 0x02, 0x01)
+    await send_spi_transaction(dut, 1, 0x04, 0x80)
+    await ClockCycles(dut.clk, 100)
+    
+    # edge tracking look
+    first_rising_time = None
+    previous_state = sample_target_pwm_bit(dut)
+    
+    for _ in range(50000):
+        await RisingEdge(dut.clk)
+        current_state = sample_target_pwm_bit(dut)
+        if previous_state == 0 and current_state == 1:
+            first_rising_time = cocotb.utils.get_sim_time(unit="ns")
+            break
+        previous_state = current_state
+        
+    assert first_rising_time is not None, "Timeout: First PWM rising edge not detected"
 
+    # second rising edge
+    second_rising_time = None
+    for _ in range(50000):
+        await RisingEdge(dut.clk)
+        current_state = sample_target_pwm_bit(dut)
+        if previous_state == 0 and current_state == 1:
+            second_rising_time = cocotb.utils.get_sim_time(unit="ns")
+            break
+        previous_state = current_state
+
+    assert second_rising_time is not None, "Timeout: Second PWM rising edge not detected"
+    
+    period_ns = second_rising_time - first_rising_time
+    frequency_hz = 1e9 / period_ns
+    dut._log.info(f"Verified Period: {period_ns} ns | Frequency: {frequency_hz:.2f} Hz")
+    
+    assert 2970 <= frequency_hz <= 3030, f"Frequency specification violation: {frequency_hz:.2f} Hz"
+    dut._log.info("PWM Frequency test completed successfully")
 
 @cocotb.test()
 async def test_pwm_duty(dut):
-    # Write your test here
+    dut._log.info("Starting Functional PWM Duty Cycle Boundary Validation...")
+    clock = Clock(dut.clk, 100, unit="ns")
+    cocotb.start_soon(clock.start())
+    await run_system_reset(dut)
+
+    # A: Master Output Enable Override Check
+    await send_spi_transaction(dut, 1, 0x00, 0x00)
+    await send_spi_transaction(dut, 1, 0x02, 0x01)
+    await send_spi_transaction(dut, 1, 0x04, 0x80) 
+    for _ in range(4000):
+        await RisingEdge(dut.clk)
+        assert sample_target_pwm_bit(dut) == 0, "Override Failure: Output enabled while master control bit is low"
+
+    # B: 0% Duty Cycle Boundary Check
+    await send_spi_transaction(dut, 1, 0x00, 0x01)
+    await send_spi_transaction(dut, 1, 0x04, 0x00)
+    for _ in range(4000):
+        await RisingEdge(dut.clk)
+        assert sample_target_pwm_bit(dut) == 0, "Boundary Violation: Expected continuous low signal at 0% duty"
+
+    # C: 50% Active Modulation Duty Measurement
+    await send_spi_transaction(dut, 1, 0x04, 0x80)
+    
+    previous_state = sample_target_pwm_bit(dut)
+    t_rise, t_fall, t_next_rise = None, None, None
+    
+    for _ in range(50000):
+        await RisingEdge(dut.clk)
+        current_state = sample_target_pwm_bit(dut)
+        if previous_state == 0 and current_state == 1:
+            t_rise = cocotb.utils.get_sim_time(unit="ns")
+            break
+        previous_state = current_state
+
+    for _ in range(50000):
+        await RisingEdge(dut.clk)
+        current_state = sample_target_pwm_bit(dut)
+        if previous_state == 1 and current_state == 0:
+            t_fall = cocotb.utils.get_sim_time(unit="ns")
+            break
+        previous_state = current_state
+
+    for _ in range(50000):
+        await RisingEdge(dut.clk)
+        current_state = sample_target_pwm_bit(dut)
+        if previous_state == 0 and current_state == 1:
+            t_next_rise = cocotb.utils.get_sim_time(unit="ns")
+            break
+        previous_state = current_state
+
+    assert None not in (t_rise, t_fall, t_next_rise), "Failed to isolate complete cycle transitions for 50% calculation"
+    
+    high_time = t_fall - t_rise
+    total_period = t_next_rise - t_rise
+    measured_duty = (high_time / total_period) * 100.0
+    
+    assert abs(measured_duty - 50.0) <= 1.0, f"Duty Cycle error exceeded tolerance bounds: {measured_duty:.2f}%"
+
+    # D: 100% Duty Cycle Boundary Check
+    await send_spi_transaction(dut, 1, 0x04, 0xFF) 
+    for _ in range(4000):
+        await RisingEdge(dut.clk)
+        assert sample_target_pwm_bit(dut) == 1, "Boundary Violation: Expected continuous high signal at 100% duty"
+
     dut._log.info("PWM Duty Cycle test completed successfully")
